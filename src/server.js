@@ -1,33 +1,67 @@
 'use strict';
-require('dotenv').config();
-const PORT = process.env.PORT || 3000;
-const express = require("express");
+
+const express = require('express');
+const bcrypt = require('bcrypt');
+
+
+// Prepare the express app
 const app = express();
-
-const notFoundHandler = require("./error-handlers/404");
-const errorHandler = require("./error-handlers/500");
-
-const signinRouter = require("./routes/signin");
-const signupRouter = require("./routes/signup");
-const secretStuffRouters = require("./routes/secretstuff");
-const getUsersRouter = require("./routes/getUsers");
-
 app.use(express.json());
-app.use(signinRouter);
-app.use(signupRouter);
-app.use(secretStuffRouters);
-app.use(getUsersRouter);
 
-app.use("*", notFoundHandler);
+// Esoteric Resources
+const errorHandler = require('./error/500.js');
+const notFound = require('./error/404.js');
+const basic = require('./auth/middleware/basic.js');
+const bearer = require('./auth/middleware/bearer.js');
+const users = require('./auth/models/users.js');
+
+
+// Routes
+app.post('/signup', async (req, res) => {
+  try {
+    let username = req.body.username;
+    let password = await bcrypt.hash(req.body.password, 10);
+
+    const record = await users.create({
+      username: username,
+      password: password,
+    });
+    res.status(201).json(record);
+  } catch (e) {
+    console.log(e.message);
+  }
+});
+
+app.post('/signin', basic, async (req, res) => {
+  res.status(200).json(req.user);
+});
+
+app.get('/users', bearer, async (req, res) => {
+  try {
+    const records = await users.findAll();
+    res.status(200).json(records);
+  }
+  catch (e) {
+    console.log(e);
+  }
+});
+
+app.get('/secretstuff', bearer, async (req, res) => {
+  res.json({
+    message: 'You have access to the secret stuff',
+    user: req.user
+  })
+});
+
+// Catchalls
+app.use(notFound);
 app.use(errorHandler);
 
-function start(PORT) {
-    app.listen(PORT, () => {
-        console.log(`Listen and Running on port ${PORT}`);
-    });
-}
-
 module.exports = {
-    app: app,
-    start: start,
+  app: app,
+  startup: (port) => {
+    app.listen(port, () => {
+      console.log(`Server Up on ${port}`);
+    });
+  },
 };
