@@ -4,7 +4,7 @@ process.env.SECRET = "TEST_SECRET";
 
 const { sequelize } = require('../src/auth/models/index');
 const supertest = require('supertest');
-const { app } = require('../src/server.js');
+const { app } = require('../src/server');
 
 const mockRequest = supertest(app);
 
